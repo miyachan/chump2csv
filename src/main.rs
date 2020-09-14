@@ -327,42 +327,36 @@ fn main() {
         |_tokens| {},
     );
 
-    if !opt.no_unix_timestamp {
-        if !no_unix_timestamp {
-            writer
-                .write_field(convert_time(row.timestamp).to_string())
-                .expect("failed to write to file");
-        }
+    if !no_unix_timestamp {
         writer
-            .write_record(None::<&[u8]>)
+            .write_field(convert_time(row.timestamp).to_string())
             .expect("failed to write to file");
-
-        let row = Rc::new(row);
-        if let Some(images) = images.as_mut() {
-            images
-                .add_row(row.clone())
-                .expect("failed to write sql stats for images");
-        }
-        if let Some(threads) = threads.as_mut() {
-            threads
-                .add_row(row.clone())
-                .expect("failed to write sql stats for threads");
-        }
-        if let Some(daily) = daily.as_mut() {
-            daily
-                .add_row(row.clone())
-                .expect("failed to write sql stats for daily");
-        }
-        if let Some(users) = users.as_mut() {
-            users
-                .add_row(row.clone())
-                .expect("failed to write sql stats for users");
-        }
     }
-
     writer
         .write_record(None::<&[u8]>)
         .expect("failed to write to file");
+
+    let row = Rc::new(row);
+    if let Some(images) = images.as_mut() {
+        images
+            .add_row(row.clone())
+            .expect("failed to write sql stats for images");
+    }
+    if let Some(threads) = threads.as_mut() {
+        threads
+            .add_row(row.clone())
+            .expect("failed to write sql stats for threads");
+    }
+    if let Some(daily) = daily.as_mut() {
+        daily
+            .add_row(row.clone())
+            .expect("failed to write sql stats for daily");
+    }
+    if let Some(users) = users.as_mut() {
+        users
+            .add_row(row.clone())
+            .expect("failed to write sql stats for users");
+    }
 
     if let Err(err) = err {
         error!("An error occured parsing the sql file: {}", err)
