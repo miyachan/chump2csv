@@ -23,11 +23,14 @@ struct Opt {
     #[structopt(long)]
     no_unix_timestamp: bool,
 
-    #[structopt(long, value_name = "SIZE", default_value = "4096")]
+    #[structopt(long, value_name = "SIZE", default_value = "65536")]
     stats_lru: usize,
 
     #[structopt(long, value_name = "OUT")]
     images: Option<PathBuf>,
+
+    #[structopt(long, value_name = "INDEX", default_value = "1")]
+    images_start_index: u64,
 
     #[structopt(long, value_name = "OUT")]
     threads: Option<PathBuf>,
@@ -81,6 +84,7 @@ struct StatBuilder<
 > {
     lru: lru::LruCache<u64, T>,
     writer: csv::Writer<X>,
+    images_start_index: u64,
     phantom: PhantomData<U>,
 }
 
@@ -96,7 +100,7 @@ impl<X: Write, U: Borrow<Row>, T: stats::WriteStat<X> + std::ops::AddAssign<U> +
             } else {
                 if self.lru.len() == self.lru.cap() {
                     let out = self.lru.pop_lru().unwrap();
-                    out.1.write(&mut self.writer)?;
+                    out.1.write(&mut self.writer, self.images_start_index)?;
                 }
                 let n = T::from(row);
                 self.lru.put(key, n);
@@ -111,7 +115,7 @@ impl<X: Write, U: Borrow<Row>, T: stats::WriteStat<X> + std::ops::AddAssign<U> +
 {
     fn drop(&mut self) {
         while let Some(x) = self.lru.pop_lru() {
-            x.1.write(&mut self.writer)
+            x.1.write(&mut self.writer, self.images_start_index)
                 .expect("failed to write sql stats");
         }
     }
@@ -145,6 +149,7 @@ fn main() {
     };
 
     let no_unix_timestamp = opt.no_unix_timestamp;
+    let media_start_index = opt.images_start_index;
     let mut writer = csv::Writer::from_writer(writer);
     let mut prev_col = 0;
     let mut row = Row::default();
@@ -157,6 +162,7 @@ fn main() {
                 lru: lru::LruCache::<u64, stats::Media>::new(opt.stats_lru),
                 writer,
                 phantom: PhantomData,
+                images_start_index: media_start_index,
             })
         })
         .transpose()
@@ -170,6 +176,7 @@ fn main() {
                 lru: lru::LruCache::<u64, stats::Thread>::new(opt.stats_lru),
                 writer,
                 phantom: PhantomData,
+                images_start_index: media_start_index,
             })
         })
         .transpose()
@@ -183,6 +190,7 @@ fn main() {
                 lru: lru::LruCache::<u64, stats::Daily>::new(opt.stats_lru),
                 writer,
                 phantom: PhantomData,
+                images_start_index: media_start_index,
             })
         })
         .transpose()
@@ -196,6 +204,7 @@ fn main() {
                 lru: lru::LruCache::<u64, stats::User>::new(opt.stats_lru),
                 writer,
                 phantom: PhantomData,
+                images_start_index: media_start_index,
             })
         })
         .transpose()
@@ -206,16 +215,6 @@ fn main() {
         |context, token| match context {
             SQLContextType::Insert(InsertContext::Value((_, column_index))) => {
                 if *column_index < prev_col {
-                    // row finished
-                    if !no_unix_timestamp {
-                        writer
-                            .write_field(convert_time(row.timestamp).to_string())
-                            .expect("failed to write to file");
-                    }
-                    writer
-                        .write_record(None::<&[u8]>)
-                        .expect("failed to write to file");
-
                     let row2 = Rc::new(row.clone());
                     if let Some(images) = images.as_mut() {
                         images
@@ -237,6 +236,28 @@ fn main() {
                             .add_row(row2.clone())
                             .expect("failed to write sql stats for users");
                     }
+
+                    if media_start_index == 0 || images.is_none() || !row.has_image() {
+                        writer.write_field(b"0").expect("failed to write to file");
+                    } else {
+                        let images = images.as_ref().unwrap();
+                        let key = stats::Media::row_key(&row).unwrap();
+                        let media = images.lru.peek(&key).unwrap();
+                        let media_id = media.media_id + media_start_index - 1;
+                        writer
+                            .write_field(media_id.to_string())
+                            .expect("failed to write to file");
+                    }
+
+                    // row finished
+                    if !no_unix_timestamp {
+                        writer
+                            .write_field(convert_time(row.timestamp).to_string())
+                            .expect("failed to write to file");
+                    }
+                    writer
+                        .write_record(None::<&[u8]>)
+                        .expect("failed to write to file");
 
                     row = Row::default();
                 }
@@ -326,6 +347,20 @@ fn main() {
         },
         |_tokens| {},
     );
+
+    // row finished
+
+    if media_start_index == 0 || images.is_none() || !row.has_image() {
+        writer.write_field(b"0").expect("failed to write to file");
+    } else {
+        let images = images.as_ref().unwrap();
+        let key = stats::Media::row_key(&row).unwrap();
+        let media = images.lru.peek(&key).unwrap();
+        let media_id = media.media_id + media_start_index - 1;
+        writer
+            .write_field(media_id.to_string())
+            .expect("failed to write to file");
+    }
 
     if !no_unix_timestamp {
         writer

@@ -1,11 +1,12 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::hash::{Hash, Hasher};
 use std::io::Write;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::Row;
 
 pub trait WriteStat<T: Write> {
-    fn write(&self, writer: &mut csv::Writer<T>) -> csv::Result<()>;
+    fn write(&self, writer: &mut csv::Writer<T>, im_start: u64) -> csv::Result<()>;
     fn key<U: Borrow<Row>>(row: U) -> Option<u64>;
 }
 
@@ -20,11 +21,13 @@ pub struct Media {
     pub(super) banned: bool,
 }
 
+static MEDIA_ID: AtomicU64 = AtomicU64::new(1);
+
 impl<T: Borrow<Row>> From<T> for Media {
     fn from(row: T) -> Self {
         let row = row.borrow();
         Self {
-            media_id: 0,
+            media_id: MEDIA_ID.fetch_add(1, Ordering::AcqRel),
             media_hash: row.media_hash.clone().unwrap(),
             media: row.media_orig.clone(),
             preview_op: match row.op {
@@ -65,24 +68,36 @@ impl<T: Borrow<Row>> std::ops::AddAssign<T> for Media {
 }
 
 impl<T: Write> WriteStat<T> for Media {
-    fn write(&self, writer: &mut csv::Writer<T>) -> csv::Result<()> {
+    fn write(&self, writer: &mut csv::Writer<T>, media_start_index: u64) -> csv::Result<()> {
+        let idx = if media_start_index == 0 {
+            Cow::Borrowed(r"\N")
+        } else {
+            Cow::Owned((self.media_id + media_start_index - 1).to_string())
+        };
         writer.write_record(&[
+            idx.as_ref(),
             &self.media_hash,
-            self.media.as_ref().map(|x| x.as_str()).unwrap_or(r"\n"),
+            self.media.as_ref().map(|x| x.as_str()).unwrap_or(r"\N"),
             self.preview_op
                 .as_ref()
                 .map(|x| x.as_str())
-                .unwrap_or(r"\n"),
+                .unwrap_or(r"\N"),
             self.preview_reply
                 .as_ref()
                 .map(|x| x.as_str())
-                .unwrap_or(r"\n"),
+                .unwrap_or(r"\N"),
             self.total.to_string().as_str(),
             "0",
         ])
     }
 
     fn key<U: Borrow<Row>>(row: U) -> Option<u64> {
+        Self::row_key(row)
+    }
+}
+
+impl Media {
+    pub fn row_key<U: Borrow<Row>>(row: U) -> Option<u64> {
         let row = row.borrow();
         row.media_hash.as_ref().map(|media_hash| {
             let mut s = fnv::FnvHasher::default();
@@ -145,7 +160,7 @@ impl<T: Borrow<Row>> std::ops::AddAssign<T> for Thread {
 }
 
 impl<T: Write> WriteStat<T> for Thread {
-    fn write(&self, writer: &mut csv::Writer<T>) -> csv::Result<()> {
+    fn write(&self, writer: &mut csv::Writer<T>, _: u64) -> csv::Result<()> {
         writer.write_record(&[
             self.thread_num.to_string().as_str(),
             self.time_op.to_string().as_str(),
@@ -205,7 +220,7 @@ impl<T: Borrow<Row>> std::ops::AddAssign<T> for User {
 }
 
 impl<T: Write> WriteStat<T> for User {
-    fn write(&self, writer: &mut csv::Writer<T>) -> csv::Result<()> {
+    fn write(&self, writer: &mut csv::Writer<T>, _: u64) -> csv::Result<()> {
         writer.write_record(&[
             self.name.as_str(),
             self.trip.as_str(),
@@ -300,7 +315,7 @@ impl<T: Borrow<Row>> std::ops::AddAssign<T> for Daily {
 }
 
 impl<T: Write> WriteStat<T> for Daily {
-    fn write(&self, writer: &mut csv::Writer<T>) -> csv::Result<()> {
+    fn write(&self, writer: &mut csv::Writer<T>, _: u64) -> csv::Result<()> {
         writer.write_record(&[
             self.day.to_string().as_str(),
             self.posts.to_string().as_str(),

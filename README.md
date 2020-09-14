@@ -25,7 +25,7 @@ $ bzcat a.sql | chump2csv --threads a_threads.sql --users a_users.sql --images a
 #### Full example
 
 ```
-$ pv -cN source < a.sql.bz2 | bzcat | pv -cN bzcat | ./chump2csv --images a/a_images.csv --daily a/a_daily.csv --threads a/a_threads.csv --users a/a_users.csv | pv -cN chump2csv > a/a.csv
+$ pv -cN source a.sql.bz2 | bzcat | pv -cN bzcat | ./chump2csv --images a/a_images.csv --daily a/a_daily.csv --threads a/a_threads.csv --users a/a_users.csv | pv -cN chump2csv > a/a.csv
 ```
 
 Finally load the data with the following SQL statement:
@@ -37,7 +37,7 @@ LOAD DATA
     INTO TABLE a
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
-    (`num`, `subnum`, `thread_num`, `op`, `timestamp`, `timestamp_expired`, `preview_orig`, `preview_w`, `preview_h`, `media_filename`, `media_w`, `media_h`, `media_size`, `media_hash`, `media_orig`, `spoiler`, `deleted`, `capcode`, `email`, `name`, `trip`, `title`, `comment`, `sticky`, `locked`, `poster_hash`, `poster_country`, `exif`, @timestamp)
+    (`num`, `subnum`, `thread_num`, `op`, `timestamp`, `timestamp_expired`, `preview_orig`, `preview_w`, `preview_h`, `media_filename`, `media_w`, `media_h`, `media_size`, `media_hash`, `media_orig`, `spoiler`, `deleted`, `capcode`, `email`, `name`, `trip`, `title`, `comment`, `sticky`, `locked`, `poster_hash`, `poster_country`, `exif`, `media_id`, @timestamp)
     SET
         unix_timestamp=FROM_UNIXTIME(@timestamp);
 ```
@@ -64,7 +64,7 @@ LOAD DATA
     INTO TABLE a_images
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
-    (`media_hash`, `media`, `preview_op`, `preview_reply`,
+    (`media_id`, `media_hash`, `media`, `preview_op`, `preview_reply`,
     `total`, `banned`);
 ```
 
@@ -92,3 +92,7 @@ LOAD DATA
     OPTIONALLY ENCLOSED BY '"'
     (`name`, `trip`, `firstseen`, `postcount`);
 ```
+
+## `board_images` linking
+
+When creating the images CSV, chump2csv will attempt to make sure every post has a valid corresponding `media_id`. If you attempt to load the images into a table that isn't empty, you may incorrectly overwrite data. Instead set the `--images_start_index` flag to some number greater than the most recent auto increment ID. To disable this (set `media_id` to 0), then set `--images_start_index` to 0.
