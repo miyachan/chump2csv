@@ -73,7 +73,7 @@ pub struct Row {
 
 impl Row {
     pub fn has_image(&self) -> bool {
-        self.media_orig.is_some()
+        self.media_hash.is_some()
     }
 }
 
