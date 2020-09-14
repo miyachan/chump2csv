@@ -1,10 +1,8 @@
-use std::borrow::Borrow;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{stdin, stdout, BufReader};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 
 use chrono::TimeZone;
 use chrono_tz::America::New_York;
@@ -16,6 +14,7 @@ mod bom_remove;
 mod stats;
 
 use bom_remove::BOMRemoveRead;
+use stats::WriteStat;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "chump2csv")]
@@ -82,21 +81,21 @@ impl Row {
 
 struct StatBuilder<
     X: Write,
-    U: Borrow<Row>,
-    T: stats::WriteStat<X> + std::ops::AddAssign<U> + From<U>,
+    T: stats::WriteStat<X> + for<'a> std::ops::AddAssign<&'a Row> + for<'a> From<&'a Row>,
 > {
     lru: lru::LruCache<u64, T>,
     writer: csv::Writer<X>,
     images_start_index: u64,
-    phantom: PhantomData<U>,
+    phantom: PhantomData<X>,
 }
 
-impl<X: Write, U: Borrow<Row>, T: stats::WriteStat<X> + std::ops::AddAssign<U> + From<U>>
-    StatBuilder<X, U, T>
+impl<
+        X: Write,
+        T: stats::WriteStat<X> + for<'a> std::ops::AddAssign<&'a Row> + for<'a> From<&'a Row>,
+    > StatBuilder<X, T>
 {
-    fn add_row(&mut self, row: U) -> csv::Result<()> {
-        //let row = row.borrow();
-        if let Some(key) = T::key(row.borrow()) {
+    fn add_row(&mut self, row: &Row) -> csv::Result<()> {
+        if let Some(key) = T::key(row) {
             if self.lru.contains(&key) {
                 let x = self.lru.get_mut(&key).unwrap();
                 x.add_assign(row);
@@ -113,8 +112,10 @@ impl<X: Write, U: Borrow<Row>, T: stats::WriteStat<X> + std::ops::AddAssign<U> +
     }
 }
 
-impl<X: Write, U: Borrow<Row>, T: stats::WriteStat<X> + std::ops::AddAssign<U> + From<U>> Drop
-    for StatBuilder<X, U, T>
+impl<
+        X: Write,
+        T: stats::WriteStat<X> + for<'a> std::ops::AddAssign<&'a Row> + for<'a> From<&'a Row>,
+    > Drop for StatBuilder<X, T>
 {
     fn drop(&mut self) {
         while let Some(x) = self.lru.pop_lru() {
@@ -239,25 +240,24 @@ fn main() {
         |context, token| match context {
             SQLContextType::Insert(InsertContext::Value((_, column_index))) => {
                 if *column_index < prev_col {
-                    let row2 = Rc::new(row.clone());
                     if let Some(images) = images.as_mut() {
                         images
-                            .add_row(row2.clone())
+                            .add_row(&row)
                             .expect("failed to write sql stats for images");
                     }
                     if let Some(threads) = threads.as_mut() {
                         threads
-                            .add_row(row2.clone())
+                            .add_row(&row)
                             .expect("failed to write sql stats for threads");
                     }
                     if let Some(daily) = daily.as_mut() {
                         daily
-                            .add_row(row2.clone())
+                            .add_row(&row)
                             .expect("failed to write sql stats for daily");
                     }
                     if let Some(users) = users.as_mut() {
                         users
-                            .add_row(row2.clone())
+                            .add_row(&row)
                             .expect("failed to write sql stats for users");
                     }
 
@@ -265,7 +265,7 @@ fn main() {
                         writer.write_field(b"0").expect("failed to write to file");
                     } else {
                         let images = images.as_ref().unwrap();
-                        let key = stats::Media::row_key(&row).unwrap();
+                        let key = <stats::Media as WriteStat<&mut [u8]>>::key(&row).unwrap();
                         let media = images.lru.peek(&key).unwrap();
                         let media_id = media.media_id + media_start_index - 1;
                         writer
@@ -372,25 +372,24 @@ fn main() {
         |_tokens| {},
     );
 
-    let row = Rc::new(row);
     if let Some(images) = images.as_mut() {
         images
-            .add_row(row.clone())
+            .add_row(&row)
             .expect("failed to write sql stats for images");
     }
     if let Some(threads) = threads.as_mut() {
         threads
-            .add_row(row.clone())
+            .add_row(&row)
             .expect("failed to write sql stats for threads");
     }
     if let Some(daily) = daily.as_mut() {
         daily
-            .add_row(row.clone())
+            .add_row(&row)
             .expect("failed to write sql stats for daily");
     }
     if let Some(users) = users.as_mut() {
         users
-            .add_row(row.clone())
+            .add_row(&row)
             .expect("failed to write sql stats for users");
     }
 
@@ -400,7 +399,7 @@ fn main() {
         writer.write_field(b"0").expect("failed to write to file");
     } else {
         let images = images.as_ref().unwrap();
-        let key = stats::Media::row_key(row.clone()).unwrap();
+        let key = <stats::Media as WriteStat<&mut [u8]>>::key(&row).unwrap();
         let media = images.lru.peek(&key).unwrap();
         let media_id = media.media_id + media_start_index - 1;
         writer

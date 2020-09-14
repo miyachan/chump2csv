@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,7 +7,7 @@ use super::Row;
 
 pub trait WriteStat<T: Write> {
     fn write(&self, writer: &mut csv::Writer<T>, im_start: u64) -> csv::Result<()>;
-    fn key<U: Borrow<Row>>(row: U) -> Option<u64>;
+    fn key(row: &Row) -> Option<u64>;
 }
 
 #[derive(Debug, Clone)]
@@ -23,9 +23,8 @@ pub struct Media {
 
 static MEDIA_ID: AtomicU64 = AtomicU64::new(1);
 
-impl<T: Borrow<Row>> From<T> for Media {
-    fn from(row: T) -> Self {
-        let row = row.borrow();
+impl From<&Row> for Media {
+    fn from(row: &Row) -> Self {
         Self {
             media_id: MEDIA_ID.fetch_add(1, Ordering::AcqRel),
             media_hash: row.media_hash.clone().unwrap(),
@@ -44,9 +43,8 @@ impl<T: Borrow<Row>> From<T> for Media {
     }
 }
 
-impl<T: Borrow<Row>> std::ops::AddAssign<T> for Media {
-    fn add_assign(&mut self, row: T) {
-        let row = row.borrow();
+impl std::ops::AddAssign<&Row> for Media {
+    fn add_assign(&mut self, row: &Row) {
         if row.has_image() {
             let preview_op = match row.op {
                 true => row.preview_orig.as_ref(),
@@ -91,14 +89,7 @@ impl<T: Write> WriteStat<T> for Media {
         ])
     }
 
-    fn key<U: Borrow<Row>>(row: U) -> Option<u64> {
-        Self::row_key(row)
-    }
-}
-
-impl Media {
-    pub fn row_key<U: Borrow<Row>>(row: U) -> Option<u64> {
-        let row = row.borrow();
+    fn key(row: &Row) -> Option<u64> {
         row.media_hash.as_ref().map(|media_hash| {
             let mut s = fnv::FnvHasher::default();
             media_hash.hash(&mut s);
@@ -120,9 +111,8 @@ pub struct Thread {
     pub(super) locked: bool,
 }
 
-impl<T: Borrow<Row>> From<T> for Thread {
-    fn from(row: T) -> Self {
-        let row = row.borrow();
+impl From<&Row> for Thread {
+    fn from(row: &Row) -> Self {
         Self {
             thread_num: row.thread_num,
             time_op: row.timestamp,
@@ -137,9 +127,8 @@ impl<T: Borrow<Row>> From<T> for Thread {
     }
 }
 
-impl<T: Borrow<Row>> std::ops::AddAssign<T> for Thread {
-    fn add_assign(&mut self, row: T) {
-        let row = row.borrow();
+impl std::ops::AddAssign<&Row> for Thread {
+    fn add_assign(&mut self, row: &Row) {
         if self.thread_num == row.thread_num {
             if row.op {
                 self.time_op = row.timestamp;
@@ -174,8 +163,7 @@ impl<T: Write> WriteStat<T> for Thread {
         ])
     }
 
-    fn key<U: Borrow<Row>>(row: U) -> Option<u64> {
-        let row = row.borrow();
+    fn key(row: &Row) -> Option<u64> {
         Some(row.thread_num as u64)
     }
 }
@@ -194,9 +182,8 @@ pub struct User {
     pub(super) post_count: i64,
 }
 
-impl<T: Borrow<Row>> From<T> for User {
-    fn from(row: T) -> Self {
-        let row = row.borrow();
+impl From<&Row> for User {
+    fn from(row: &Row) -> Self {
         Self {
             name: row.name.clone().unwrap_or(String::from("")),
             trip: row.trip.clone().unwrap_or(String::from("")),
@@ -206,9 +193,8 @@ impl<T: Borrow<Row>> From<T> for User {
     }
 }
 
-impl<T: Borrow<Row>> std::ops::AddAssign<T> for User {
-    fn add_assign(&mut self, row: T) {
-        let row = row.borrow();
+impl std::ops::AddAssign<&Row> for User {
+    fn add_assign(&mut self, row: &Row) {
         let empty = String::from("");
         if row.name.as_ref().unwrap_or(&empty) == &self.name
             && row.trip.as_ref().unwrap_or(&empty) == &self.trip
@@ -229,8 +215,7 @@ impl<T: Write> WriteStat<T> for User {
         ])
     }
 
-    fn key<U: Borrow<Row>>(row: U) -> Option<u64> {
-        let row = row.borrow();
+    fn key(row: &Row) -> Option<u64> {
         if (row.name.is_none() || row.name.as_ref().unwrap().len() == 0)
             && (row.trip.is_none() || row.trip.as_ref().unwrap().len() == 0)
         {
@@ -261,9 +246,8 @@ pub struct Daily {
     pub(super) names: u64,
 }
 
-impl<T: Borrow<Row>> From<T> for Daily {
-    fn from(row: T) -> Self {
-        let row = row.borrow();
+impl From<&Row> for Daily {
+    fn from(row: &Row) -> Self {
         Self {
             day: (row.timestamp / 86400) * 86400,
             posts: 1,
@@ -288,9 +272,8 @@ impl<T: Borrow<Row>> From<T> for Daily {
     }
 }
 
-impl<T: Borrow<Row>> std::ops::AddAssign<T> for Daily {
-    fn add_assign(&mut self, row: T) {
-        let row = row.borrow();
+impl std::ops::AddAssign<&Row> for Daily {
+    fn add_assign(&mut self, row: &Row) {
         if self.day == (row.timestamp / 86400) * 86400 {
             self.posts += 1;
             self.images += if row.has_image() { 1 } else { 0 };
@@ -327,8 +310,7 @@ impl<T: Write> WriteStat<T> for Daily {
         ])
     }
 
-    fn key<U: Borrow<Row>>(row: U) -> Option<u64> {
-        let row = row.borrow();
+    fn key(row: &Row) -> Option<u64> {
         Some(((row.timestamp / 86400) * 86400) as u64)
     }
 }

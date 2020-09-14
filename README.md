@@ -19,7 +19,7 @@ $ bzcat a.sql.bz2 | chump2csv --no_unix_timestamp > a.csv
 You can also precompute stats tables as a CSV.
 
 ```sh
-$ bzcat a.sql | chump2csv --threads a_threads.sql --users a_users.sql --images a_images.sql > a.csv
+$ bzcat a.sql | chump2csv --threads a_threads.csv --users a_users.csv --images a_images.csv > a.csv
 ```
 
 If you plan to import into something like sqlite, you may want to use tab seperated columns:
