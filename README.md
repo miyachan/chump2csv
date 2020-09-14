@@ -22,12 +22,18 @@ You can also precompute stats tables as a CSV.
 $ bzcat a.sql | chump2csv --threads a_threads.sql --users a_users.sql --images a_images.sql > a.csv
 ```
 
+#### Full example
+
+```
+$ pv -cN source < a.sql.bz2 | bzcat | pv -cN bzcat | ./chump2csv --images a/a_images.csv --daily a/a_daily.csv --threads a/a_threads.csv --users a/a_users.csv | pv -cN chump2csv > a/a.csv
+```
+
 Finally load the data with the following SQL statement:
 
 ```sql
 LOAD DATA
     LOCAL
-    INFILE 'a.sql'
+    INFILE 'a.csv'
     INTO TABLE a
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
@@ -41,7 +47,7 @@ LOAD DATA
 ```sql
 LOAD DATA
     LOCAL
-    INFILE 'a_threads.sql'
+    INFILE 'a_threads.csv'
     INTO TABLE a_threads
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
@@ -54,7 +60,7 @@ LOAD DATA
 ```sql
 LOAD DATA
     LOCAL
-    INFILE 'a_images.sql'
+    INFILE 'a_images.csv'
     INTO TABLE a_images
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
@@ -67,7 +73,7 @@ LOAD DATA
 ```sql
 LOAD DATA
     LOCAL
-    INFILE 'a_daily.sql'
+    INFILE 'a_daily.csv'
     INTO TABLE a_daily
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
@@ -80,7 +86,7 @@ LOAD DATA
 ```sql
 LOAD DATA
     LOCAL
-    INFILE 'a_users.sql'
+    INFILE 'a_users.csv'
     INTO TABLE a_users
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
