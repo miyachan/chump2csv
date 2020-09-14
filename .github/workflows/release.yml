@@ -98,18 +98,18 @@ jobs:
       - name: Create Build (Linux)
         if: matrix.build == 'linux'
         run: |
-          mv ./target/${{ env.LINUX_TARGET }}/release/torako ./${{ env.RELEASE_DIR }}/torako-${{ env.LINUX64_NAME }}
+          mv ./target/${{ env.LINUX_TARGET }}/release/chump2csv ./${{ env.RELEASE_DIR }}/chump2csv-${{ env.LINUX64_NAME }}
 
       - name: Create Build (Windows)
         if: matrix.build == 'windows'
         shell: bash
         run: |
-          mv ./target/release/torako.exe ./${{ env.RELEASE_DIR }}/torako-${{ env.WINDOWS64_NAME }}.exe
+          mv ./target/release/chump2csv.exe ./${{ env.RELEASE_DIR }}/chump2csv-${{ env.WINDOWS64_NAME }}.exe
 
       - name: Create Build (MacOS)
         if: matrix.build == 'macos'
         run: |
-          mv ./target/release/torako ./${{ env.RELEASE_DIR }}/torako-${{ env.MACOS64_NAME }}
+          mv ./target/release/chump2csv ./${{ env.RELEASE_DIR }}/chump2csv-${{ env.MACOS64_NAME }}
 
       - name: Upload binaries
         uses: actions/upload-artifact@v1
@@ -160,9 +160,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/torako-${{ env.LINUX64_NAME }}
+          asset_path: ./linux/chump2csv-${{ env.LINUX64_NAME }}
           asset_content_type: application/octet-stream
-          asset_name: torako-${{ env.LINUX64_NAME }}
+          asset_name: chump2csv-${{ env.LINUX64_NAME }}
 
       - name: Release Windows bundle
         uses: actions/upload-release-asset@v1
@@ -170,9 +170,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows/torako-${{ env.WINDOWS64_NAME }}.exe
+          asset_path: ./windows/chump2csv-${{ env.WINDOWS64_NAME }}.exe
           asset_content_type: application/octet-stream
-          asset_name: torako-${{ env.WINDOWS64_NAME }}.exe
+          asset_name: chump2csv-${{ env.WINDOWS64_NAME }}.exe
 
       - name: Release MacOS bundle
         uses: actions/upload-release-asset@v1
@@ -180,6 +180,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macos/torako-${{ env.MACOS64_NAME }}
+          asset_path: ./macos/chump2csv-${{ env.MACOS64_NAME }}
           asset_content_type: application/octet-stream
-          asset_name: torako-${{ env.MACOS64_NAME }}
+          asset_name: chump2csv-${{ env.MACOS64_NAME }}
