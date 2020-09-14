@@ -28,10 +28,61 @@ Finally load the data with the following SQL statement:
 LOAD DATA
     LOCAL
     INFILE 'a.sql'
-    INTO TABLE c
+    INTO TABLE a
     FIELDS TERMINATED BY ','
     OPTIONALLY ENCLOSED BY '"'
     (`num`, `subnum`, `thread_num`, `op`, `timestamp`, `timestamp_expired`, `preview_orig`, `preview_w`, `preview_h`, `media_filename`, `media_w`, `media_h`, `media_size`, `media_hash`, `media_orig`, `spoiler`, `deleted`, `capcode`, `email`, `name`, `trip`, `title`, `comment`, `sticky`, `locked`, `poster_hash`, `poster_country`, `exif`, @timestamp)
     SET
         unix_timestamp=FROM_UNIXTIME(@timestamp);
+```
+
+#### Threads
+
+```sql
+LOAD DATA
+    LOCAL
+    INFILE 'a_threads.sql'
+    INTO TABLE a_threads
+    FIELDS TERMINATED BY ','
+    OPTIONALLY ENCLOSED BY '"'
+    (`thread_num`, `time_op`, `time_last`, `time_bump`,
+    `time_last_modified`, `nreplies`, `nimages`, `sticky`, `locked`);
+```
+
+#### Images
+
+```sql
+LOAD DATA
+    LOCAL
+    INFILE 'a_images.sql'
+    INTO TABLE a_images
+    FIELDS TERMINATED BY ','
+    OPTIONALLY ENCLOSED BY '"'
+    (`media_hash`, `media`, `preview_op`, `preview_reply`,
+    `total`, `banned`);
+```
+
+#### Daily
+
+```sql
+LOAD DATA
+    LOCAL
+    INFILE 'a_daily.sql'
+    INTO TABLE a_daily
+    FIELDS TERMINATED BY ','
+    OPTIONALLY ENCLOSED BY '"'
+    (`day`, `posts`, `images`, `sage`,
+    `anons`, `trips`, `names`);
+```
+
+#### Users
+
+```sql
+LOAD DATA
+    LOCAL
+    INFILE 'a_users.sql'
+    INTO TABLE a_users
+    FIELDS TERMINATED BY ','
+    OPTIONALLY ENCLOSED BY '"'
+    (`name`, `trip`, `firstseen`, `postcount`);
 ```
