@@ -20,6 +20,9 @@ use bom_remove::BOMRemoveRead;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "chump2csv")]
 struct Opt {
+    #[structopt(long, value_name = "delimiter", default_value = ",")]
+    delimiter: String,
+
     #[structopt(long)]
     no_unix_timestamp: bool,
 
@@ -131,6 +134,17 @@ fn convert_time(ny_time: i64) -> i64 {
 fn main() {
     pretty_env_logger::init_timed();
     let opt = Opt::from_args();
+    let delimiter = match opt.delimiter.to_lowercase().as_str() {
+        "tab" => b'\t',
+        _ => {
+            if opt.delimiter.len() != 1 {
+                error!("Invalid delimiter, must be a single character");
+                return;
+            } else {
+                opt.delimiter.chars().next().unwrap() as u8
+            }
+        }
+    };
 
     let reader: BufReader<Box<dyn Read>> = if opt.input == Path::new("-") {
         info!("Reading from stdin");
@@ -150,14 +164,18 @@ fn main() {
 
     let no_unix_timestamp = opt.no_unix_timestamp;
     let media_start_index = opt.images_start_index;
-    let mut writer = csv::Writer::from_writer(writer);
+    let mut writer = csv::WriterBuilder::new()
+        .delimiter(delimiter)
+        .from_writer(writer);
     let mut prev_col = 0;
     let mut row = Row::default();
     let mut images = opt
         .images
         .as_ref()
         .map(|image_path| {
-            let writer = csv::Writer::from_path(&image_path);
+            let writer = csv::WriterBuilder::new()
+                .delimiter(delimiter)
+                .from_path(&image_path);
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::Media>::new(opt.stats_lru),
                 writer,
@@ -171,7 +189,9 @@ fn main() {
         .threads
         .as_ref()
         .map(|thread_path| {
-            let writer = csv::Writer::from_path(&thread_path);
+            let writer = csv::WriterBuilder::new()
+                .delimiter(delimiter)
+                .from_path(&thread_path);
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::Thread>::new(opt.stats_lru),
                 writer,
@@ -185,7 +205,9 @@ fn main() {
         .daily
         .as_ref()
         .map(|daily_path| {
-            let writer = csv::Writer::from_path(&daily_path);
+            let writer = csv::WriterBuilder::new()
+                .delimiter(delimiter)
+                .from_path(&daily_path);
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::Daily>::new(opt.stats_lru),
                 writer,
@@ -199,7 +221,9 @@ fn main() {
         .users
         .as_ref()
         .map(|users_path| {
-            let writer = csv::Writer::from_path(&users_path);
+            let writer = csv::WriterBuilder::new()
+                .delimiter(delimiter)
+                .from_path(&users_path);
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::User>::new(opt.stats_lru),
                 writer,
