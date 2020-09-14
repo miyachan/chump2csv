@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{stdin, stdout, BufReader};
-use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use chrono::TimeZone;
@@ -86,7 +85,6 @@ struct StatBuilder<
     lru: lru::LruCache<u64, T>,
     writer: csv::Writer<X>,
     images_start_index: u64,
-    phantom: PhantomData<X>,
 }
 
 impl<
@@ -180,7 +178,6 @@ fn main() {
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::Media>::new(opt.stats_lru),
                 writer,
-                phantom: PhantomData,
                 images_start_index: media_start_index,
             })
         })
@@ -196,7 +193,6 @@ fn main() {
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::Thread>::new(opt.stats_lru),
                 writer,
-                phantom: PhantomData,
                 images_start_index: media_start_index,
             })
         })
@@ -212,7 +208,6 @@ fn main() {
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::Daily>::new(opt.stats_lru),
                 writer,
-                phantom: PhantomData,
                 images_start_index: media_start_index,
             })
         })
@@ -228,7 +223,6 @@ fn main() {
             writer.map(|writer| StatBuilder {
                 lru: lru::LruCache::<u64, stats::User>::new(opt.stats_lru),
                 writer,
-                phantom: PhantomData,
                 images_start_index: media_start_index,
             })
         })
