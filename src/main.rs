@@ -348,29 +348,6 @@ fn main() {
         |_tokens| {},
     );
 
-    // row finished
-
-    if media_start_index == 0 || images.is_none() || !row.has_image() {
-        writer.write_field(b"0").expect("failed to write to file");
-    } else {
-        let images = images.as_ref().unwrap();
-        let key = stats::Media::row_key(&row).unwrap();
-        let media = images.lru.peek(&key).unwrap();
-        let media_id = media.media_id + media_start_index - 1;
-        writer
-            .write_field(media_id.to_string())
-            .expect("failed to write to file");
-    }
-
-    if !no_unix_timestamp {
-        writer
-            .write_field(convert_time(row.timestamp).to_string())
-            .expect("failed to write to file");
-    }
-    writer
-        .write_record(None::<&[u8]>)
-        .expect("failed to write to file");
-
     let row = Rc::new(row);
     if let Some(images) = images.as_mut() {
         images
@@ -392,6 +369,29 @@ fn main() {
             .add_row(row.clone())
             .expect("failed to write sql stats for users");
     }
+
+    // row finished
+
+    if media_start_index == 0 || images.is_none() || !row.has_image() {
+        writer.write_field(b"0").expect("failed to write to file");
+    } else {
+        let images = images.as_ref().unwrap();
+        let key = stats::Media::row_key(row.clone()).unwrap();
+        let media = images.lru.peek(&key).unwrap();
+        let media_id = media.media_id + media_start_index - 1;
+        writer
+            .write_field(media_id.to_string())
+            .expect("failed to write to file");
+    }
+
+    if !no_unix_timestamp {
+        writer
+            .write_field(convert_time(row.timestamp).to_string())
+            .expect("failed to write to file");
+    }
+    writer
+        .write_record(None::<&[u8]>)
+        .expect("failed to write to file");
 
     if let Err(err) = err {
         error!("An error occured parsing the sql file: {}", err)
