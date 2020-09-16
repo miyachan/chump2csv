@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{stdin, stdout, BufReader};
@@ -6,6 +7,7 @@ use std::path::{Path, PathBuf};
 use chrono::TimeZone;
 use chrono_tz::America::New_York;
 use log::{error, info};
+use memchr::memchr;
 use mysqldump_mutator::{InsertContext, Parser, SQLContextType};
 use structopt::StructOpt;
 
@@ -283,16 +285,23 @@ fn main() {
                 let val = if tk_str == "NULL" {
                     writer.write_field(r"\N").expect("failed to write to file");
 
-                    r"\N"
+                    Cow::Borrowed(r"\N")
                 } else {
                     let val = if tk_str.chars().next().unwrap() == '\'' {
-                        &tk_str[1..tk_str.len() - 1]
+                        if tk_str == "'NULL'" {
+                            tk_str.as_ref()
+                        } else {
+                            &tk_str[1..tk_str.len() - 1]
+                        }
                     } else {
                         tk_str.as_ref()
                     };
                     writer.write_field(val).expect("failed to write to file");
 
-                    val
+                    match memchr(b'"', val.as_bytes()) {
+                        Some(_) => Cow::Owned(val.replace("\\\"", "\"")),
+                        None => Cow::Borrowed(val),
+                    }
                 };
 
                 match *column_index {
