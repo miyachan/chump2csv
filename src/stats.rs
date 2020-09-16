@@ -121,8 +121,8 @@ impl From<&Row> for Thread {
             time_last_modified: row.timestamp,
             n_replies: 1,
             n_images: if row.has_image() { 1 } else { 0 },
-            sticky: row.sticky,
-            locked: row.locked,
+            sticky: false,
+            locked: false,
         }
     }
 }
@@ -132,8 +132,8 @@ impl std::ops::AddAssign<&Row> for Thread {
         if self.thread_num == row.thread_num {
             if row.op {
                 self.time_op = row.timestamp;
-                self.sticky = row.sticky;
-                self.locked = row.locked;
+                // self.sticky = row.sticky;
+                // self.locked = row.locked;
             }
             self.time_last = self.time_last.max(row.timestamp);
             self.time_bump = if row.email.as_ref().map(|x| x != "sage").unwrap_or(true) {
