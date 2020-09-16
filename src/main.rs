@@ -298,9 +298,14 @@ fn main() {
                     };
                     writer.write_field(val).expect("failed to write to file");
 
-                    match memchr(b'"', val.as_bytes()) {
+                    let val = match memchr(b'"', val.as_bytes()) {
                         Some(_) => Cow::Owned(val.replace("\\\"", "\"")),
                         None => Cow::Borrowed(val),
+                    };
+
+                    match memchr(b'\'', val.as_bytes()) {
+                        Some(_) => Cow::Owned(val.replace("\\'", "'")),
+                        None => val,
                     }
                 };
 
