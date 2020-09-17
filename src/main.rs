@@ -382,7 +382,7 @@ fn main() {
     );
 
     if let Err(err) = err {
-        error!("An error occured parsing the sql file: {}", err)
+        panic!("An error occured parsing the sql file: {}", err)
     }
 
     if let Some(images) = images.as_mut() {
