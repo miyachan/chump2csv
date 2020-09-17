@@ -283,8 +283,6 @@ fn main() {
                 }
                 let tk_str = token.to_string();
                 let val = if tk_str == "NULL" {
-                    writer.write_field(r"\N").expect("failed to write to file");
-
                     Cow::Borrowed(r"\N")
                 } else {
                     let val = if tk_str.chars().next().unwrap() == '\'' {
@@ -296,7 +294,6 @@ fn main() {
                     } else {
                         tk_str.as_ref()
                     };
-                    writer.write_field(val).expect("failed to write to file");
 
                     let val = match memchr(b'"', val.as_bytes()) {
                         Some(_) => Cow::Owned(val.replace("\\\"", "\"")),
@@ -308,6 +305,10 @@ fn main() {
                         None => val,
                     }
                 };
+
+                writer
+                    .write_field(val.as_ref())
+                    .expect("failed to write to file");
 
                 match *column_index {
                     0 => {
