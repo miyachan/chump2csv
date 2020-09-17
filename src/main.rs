@@ -381,6 +381,10 @@ fn main() {
         |_tokens| {},
     );
 
+    if let Err(err) = err {
+        error!("An error occured parsing the sql file: {}", err)
+    }
+
     if let Some(images) = images.as_mut() {
         images
             .add_row(&row)
@@ -424,8 +428,4 @@ fn main() {
     writer
         .write_record(None::<&[u8]>)
         .expect("failed to write to file");
-
-    if let Err(err) = err {
-        error!("An error occured parsing the sql file: {}", err)
-    }
 }
